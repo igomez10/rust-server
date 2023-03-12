@@ -14,37 +14,32 @@ mod userrepo;
 extern crate rocket;
 
 pub struct AppState {
-    pub todo_db: Arc<Mutex<Vec<i32>>>,
+    pub user_handler: Arc<Mutex<UserHandler>>,
 }
 
 impl AppState {
-    pub fn init() -> AppState {
+    pub fn new(user_handler: UserHandler) -> AppState {
         AppState {
-            todo_db: Arc::new(Mutex::new(Vec::new())),
+            user_handler: Arc::new(Mutex::new(user_handler)),
         }
     }
 }
-struct UserHandler {
+pub struct UserHandler {
     user_repo: Arc<Mutex<userrepo::UserRepo>>,
-    count: Arc<Mutex<i32>>,
 }
 
 impl UserHandler {
     fn new(user_repo: userrepo::UserRepo) -> UserHandler {
         UserHandler {
             user_repo: Arc::new(Mutex::new(user_repo)),
-            count: Arc::new(Mutex::new(0)),
         }
     }
-    fn set_name(&mut self, name: String) {
-        self.user_repo.lock().unwrap().set_name(name);
-    }
+
     fn get_name(&self) -> String {
-        self.user_repo.lock().unwrap().get_name()
+        return self.user_repo.lock().unwrap().get_name();
     }
-    fn increase_count(&mut self) {
-        let mut count = self.count.lock().unwrap();
-        *count += 1;
+    fn set_name(&self, name: String) {
+        self.user_repo.lock().unwrap().set_name(name);
     }
 }
 
@@ -53,6 +48,7 @@ fn hello(name: &str, age: u8) -> String {
     format!("Hello, {} year old named {}!", age, name)
 }
 
+// example of async function
 #[get("/exec")]
 async fn handlerexec() -> String {
     // call makehttprequest
@@ -60,25 +56,30 @@ async fn handlerexec() -> String {
     return res;
 }
 
-#[get("/count")]
-fn getcount(uh: &State<UserHandler>) -> String {
-    // increase count by 1
-    let mut count = uh.count.lock().unwrap();
-    *count += 1;
-
-    return format!("Count: {}", count);
-}
-
 #[post("/name/<name>")]
-fn postname(name: &str, uh: &State<UserHandler>) {
+fn postname(name: &str, state: &State<AppState>) {
     // get name
-    uh.user_repo.lock().unwrap().set_name(name.to_string());
+    state
+        .user_handler
+        .lock()
+        .unwrap()
+        .user_repo
+        .lock()
+        .unwrap()
+        .set_name(name.to_string());
 }
 
 #[get("/name")]
-fn getname(uh: &State<UserHandler>) -> String {
+fn getname(state: &State<AppState>) -> String {
     // get name
-    return uh.user_repo.lock().unwrap().get_name();
+    return state
+        .user_handler
+        .lock()
+        .unwrap()
+        .user_repo
+        .lock()
+        .unwrap()
+        .get_name();
 }
 
 async fn makehttprequest() -> String {
@@ -98,11 +99,9 @@ async fn makehttprequest() -> String {
 fn rocket() -> _ {
     let user_repo = userrepo::UserRepo::new();
     let user_handler = UserHandler::new(user_repo);
+    let app_state = AppState::new(user_handler);
 
     rocket::build()
-        .mount(
-            "/",
-            routes![hello, handlerexec, getcount, postname, getname],
-        )
-        .manage(user_handler)
+        .mount("/", routes![hello, handlerexec, postname, getname])
+        .manage(app_state)
 }
