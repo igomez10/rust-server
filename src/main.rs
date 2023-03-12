@@ -1,10 +1,5 @@
-use std::{
-    ops::Add,
-    sync::{Arc, Mutex},
-};
-
-use rocket::{request::FromRequest, State};
-
+use rocket::State;
+use std::sync::{Arc, Mutex};
 mod math;
 mod models;
 mod square;
@@ -63,23 +58,13 @@ fn postname(name: &str, state: &State<AppState>) {
         .user_handler
         .lock()
         .unwrap()
-        .user_repo
-        .lock()
-        .unwrap()
         .set_name(name.to_string());
 }
 
 #[get("/name")]
 fn getname(state: &State<AppState>) -> String {
     // get name
-    return state
-        .user_handler
-        .lock()
-        .unwrap()
-        .user_repo
-        .lock()
-        .unwrap()
-        .get_name();
+    return state.user_handler.lock().unwrap().get_name();
 }
 
 async fn makehttprequest() -> String {
