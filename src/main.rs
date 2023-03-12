@@ -25,22 +25,22 @@ impl AppState {
     }
 }
 struct UserHandler {
-    user_repo: userrepo::UserRepo,
+    user_repo: Arc<Mutex<userrepo::UserRepo>>,
     count: Arc<Mutex<i32>>,
 }
 
 impl UserHandler {
     fn new(user_repo: userrepo::UserRepo) -> UserHandler {
         UserHandler {
-            user_repo: user_repo,
+            user_repo: Arc::new(Mutex::new(user_repo)),
             count: Arc::new(Mutex::new(0)),
         }
     }
     fn set_name(&mut self, name: String) {
-        self.user_repo.set_name(name);
+        self.user_repo.lock().unwrap().set_name(name);
     }
     fn get_name(&self) -> String {
-        self.user_repo.get_name()
+        self.user_repo.lock().unwrap().get_name()
     }
     fn increase_count(&mut self) {
         let mut count = self.count.lock().unwrap();
@@ -69,6 +69,18 @@ fn getcount(uh: &State<UserHandler>) -> String {
     return format!("Count: {}", count);
 }
 
+#[post("/name/<name>")]
+fn postname(name: &str, uh: &State<UserHandler>) {
+    // get name
+    uh.user_repo.lock().unwrap().set_name(name.to_string());
+}
+
+#[get("/name")]
+fn getname(uh: &State<UserHandler>) -> String {
+    // get name
+    return uh.user_repo.lock().unwrap().get_name();
+}
+
 async fn makehttprequest() -> String {
     let client = reqwest::Client::new();
     let res = client
@@ -88,6 +100,9 @@ fn rocket() -> _ {
     let user_handler = UserHandler::new(user_repo);
 
     rocket::build()
-        .mount("/", routes![hello, handlerexec, getcount])
+        .mount(
+            "/",
+            routes![hello, handlerexec, getcount, postname, getname],
+        )
         .manage(user_handler)
 }
