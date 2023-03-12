@@ -1,4 +1,4 @@
-use rocket::State;
+use rocket::{serde::json::Json, State};
 use std::sync::{Arc, Mutex};
 mod math;
 mod models;
@@ -36,6 +36,18 @@ impl UserHandler {
     fn set_name(&self, name: String) {
         self.user_repo.lock().unwrap().set_name(name);
     }
+    fn add_user(&self, user: models::User) {
+        self.user_repo.lock().unwrap().add_user(user);
+    }
+    fn get_user(&self, id: i32) -> Option<models::User> {
+        self.user_repo.lock().unwrap().get_user(id).cloned()
+    }
+    fn list_users(&self) -> Vec<models::User> {
+        self.user_repo.lock().unwrap().list_users()
+    }
+    fn remove_user(&self, id: i32) {
+        self.user_repo.lock().unwrap().remove_user(id);
+    }
 }
 
 #[get("/hello/<name>/<age>")]
@@ -67,6 +79,44 @@ fn getname(state: &State<AppState>) -> String {
     return state.user_handler.lock().unwrap().get_name();
 }
 
+#[get("/users")]
+fn listusers(state: &State<AppState>) -> String {
+    // get name
+    let users = state.user_handler.lock().unwrap().list_users();
+    let mut res = String::new();
+    for user in users {
+        res.push_str(&format!("{} ", user.name));
+    }
+    return res;
+}
+
+#[get("/users/<id>")]
+fn getuser(id: i32, state: &State<AppState>) -> String {
+    // get name
+    let user = state.user_handler.lock().unwrap().get_user(id);
+    match user {
+        Some(user) => return user.name,
+        None => return "User not found".to_string(),
+    }
+}
+
+// post json to /users to create user
+#[post("/users", data = "<user>")]
+fn createuser(user: Json<models::User>, state: &State<AppState>) {
+    // get name
+    state
+        .user_handler
+        .lock()
+        .unwrap()
+        .add_user(user.into_inner());
+}
+
+#[delete("/users/<id>")]
+fn deleteuser(id: i32, state: &State<AppState>) {
+    // get name
+    state.user_handler.lock().unwrap().remove_user(id);
+}
+
 async fn makehttprequest() -> String {
     let client = reqwest::Client::new();
     let res = client
@@ -87,6 +137,18 @@ fn rocket() -> _ {
     let app_state = AppState::new(user_handler);
 
     rocket::build()
-        .mount("/", routes![hello, handlerexec, postname, getname])
+        .mount(
+            "/",
+            routes![
+                hello,
+                handlerexec,
+                postname,
+                getname,
+                listusers,
+                getuser,
+                createuser,
+                deleteuser
+            ],
+        )
         .manage(app_state)
 }

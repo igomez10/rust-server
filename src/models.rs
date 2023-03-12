@@ -1,5 +1,6 @@
+use serde::{Deserialize, Serialize};
 // create structure user that implements ToDB
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: i32,
     pub name: String,

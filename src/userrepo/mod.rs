@@ -1,10 +1,9 @@
 // import user from models.rs User
 use crate::models::User;
-use std::collections::HashMap;
 
 // User repo stores users in a hashmap
 pub struct UserRepo {
-    // users: Vec<User>,
+    users: Vec<User>,
     name: String,
 }
 
@@ -13,6 +12,7 @@ impl UserRepo {
         // UserRepo { users: Vec::new() }
         UserRepo {
             name: "UserRepo".to_string(),
+            users: Vec::new(),
         }
     }
 
@@ -22,18 +22,29 @@ impl UserRepo {
     pub fn get_name(&self) -> String {
         self.name.clone()
     }
+
+    pub fn add_user(&mut self, user: User) {
+        self.users.push(user);
+    }
+    pub fn get_user(&self, id: i32) -> Option<&User> {
+        self.users.iter().find(|&user| user.id == id)
+    }
+
+    pub fn list_users(&self) -> Vec<User> {
+        // create copy of users
+        let mut users = self.users.clone();
+        // sort users by id
+        return users;
+    }
+
+    pub fn remove_user(&mut self, id: i32) {
+        self.users.retain(|user| user.id != id);
+    }
 }
 
 impl Default for UserRepo {
     fn default() -> Self {
         Self::new()
-    }
-}
-impl Clone for UserRepo {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-        }
     }
 }
 
