@@ -1,9 +1,15 @@
 use rocket::{serde::json::Json, State};
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
+
 mod math;
 mod models;
 mod square;
-mod userrepo;
+mod user_repo;
+mod middlewares {
+    pub mod counter;
+    pub mod request_id;
+}
 
 #[macro_use]
 extern crate rocket;
@@ -19,12 +25,13 @@ impl AppState {
         }
     }
 }
+
 pub struct UserHandler {
-    user_repo: Arc<Mutex<userrepo::UserRepo>>,
+    user_repo: Arc<Mutex<user_repo::UserRepo>>,
 }
 
 impl UserHandler {
-    fn new(user_repo: userrepo::UserRepo) -> UserHandler {
+    fn new(user_repo: user_repo::UserRepo) -> UserHandler {
         UserHandler {
             user_repo: Arc::new(Mutex::new(user_repo)),
         }
@@ -57,14 +64,14 @@ fn hello(name: &str, age: u8) -> String {
 
 // example of async function
 #[get("/exec")]
-async fn handlerexec() -> String {
-    // call makehttprequest
-    let res = makehttprequest().await;
+async fn handler_exec() -> String {
+    // call makeHTTPRequest
+    let res = make_http_request().await;
     return res;
 }
 
 #[post("/name/<name>")]
-fn postname(name: &str, state: &State<AppState>) {
+fn post_name(name: &str, state: &State<AppState>) {
     // get name
     state
         .user_handler
@@ -74,13 +81,13 @@ fn postname(name: &str, state: &State<AppState>) {
 }
 
 #[get("/name")]
-fn getname(state: &State<AppState>) -> String {
+fn get_name(state: &State<AppState>) -> String {
     // get name
     return state.user_handler.lock().unwrap().get_name();
 }
 
 #[get("/users")]
-fn listusers(state: &State<AppState>) -> String {
+fn list_users(state: &State<AppState>) -> String {
     // get name
     let users = state.user_handler.lock().unwrap().list_users();
     let mut res = String::new();
@@ -91,18 +98,18 @@ fn listusers(state: &State<AppState>) -> String {
 }
 
 #[get("/users/<id>")]
-fn getuser(id: i32, state: &State<AppState>) -> String {
+fn get_user(id: i32, state: &State<AppState>) -> String {
     // get name
     let user = state.user_handler.lock().unwrap().get_user(id);
-    match user {
-        Some(user) => return user.name,
-        None => return "User not found".to_string(),
-    }
+    return match user {
+        Some(user) => user.name,
+        None => "User not found".to_string(),
+    };
 }
 
 // post json to /users to create user
 #[post("/users", data = "<user>")]
-fn createuser(user: Json<models::User>, state: &State<AppState>) {
+fn create_user(user: Json<models::User>, state: &State<AppState>) {
     // get name
     state
         .user_handler
@@ -112,12 +119,12 @@ fn createuser(user: Json<models::User>, state: &State<AppState>) {
 }
 
 #[delete("/users/<id>")]
-fn deleteuser(id: i32, state: &State<AppState>) {
+fn delete_user(id: i32, state: &State<AppState>) {
     // get name
     state.user_handler.lock().unwrap().remove_user(id);
 }
 
-async fn makehttprequest() -> String {
+async fn make_http_request() -> String {
     let client = reqwest::Client::new();
     let res = client
         .get("https://www.rust-lang.org")
@@ -130,25 +137,41 @@ async fn makehttprequest() -> String {
     return res.text().await.unwrap();
 }
 
-#[launch]
-fn rocket() -> _ {
-    let user_repo = userrepo::UserRepo::new();
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
+    let user_repo = user_repo::UserRepo::new();
     let user_handler = UserHandler::new(user_repo);
     let app_state = AppState::new(user_handler);
+    // mount in port 8080
 
-    rocket::build()
+    let counter_middleware = middlewares::counter::Counter {
+        get: AtomicUsize::new(0),
+        post: AtomicUsize::new(0),
+    };
+
+    let request_id_middleware = middlewares::request_id::RequestId {};
+
+    let _rocket = rocket::build()
         .mount(
             "/",
             routes![
                 hello,
-                handlerexec,
-                postname,
-                getname,
-                listusers,
-                getuser,
-                createuser,
-                deleteuser
+                handler_exec,
+                post_name,
+                get_name,
+                list_users,
+                get_user,
+                create_user,
+                delete_user
             ],
         )
+        .attach(counter_middleware)
+        .attach(request_id_middleware)
         .manage(app_state)
+        .launch()
+        .await?;
+
+    Ok(())
 }
+
+// fn main() {}
