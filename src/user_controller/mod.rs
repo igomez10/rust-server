@@ -7,12 +7,6 @@ pub struct UserCtrl {
     user_repo: Box<dyn UserRepoTrait>,
 }
 
-impl UserCtrl {
-    pub fn new(user_repo: Box<dyn UserRepoTrait>) -> UserCtrl {
-        UserCtrl { user_repo }
-    }
-}
-
 impl UserCtrlTrait for UserCtrl {
     fn get_name(&mut self) -> String {
         self.user_repo.get_name()

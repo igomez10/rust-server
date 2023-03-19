@@ -1,9 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{
-    models,
-    user_repo::{UserRepo, UserRepoTrait},
-};
+use crate::{models, user_repo::UserRepoTrait};
 
 // trait
 pub trait UserHandlerTrait: Send + Sync {
@@ -16,11 +13,11 @@ pub trait UserHandlerTrait: Send + Sync {
 }
 
 pub struct UserHandler {
-    user_repo: Arc<Mutex<UserRepo>>,
+    user_repo: Arc<Mutex<dyn UserRepoTrait>>,
 }
 
 impl UserHandler {
-    pub fn new(user_repo: UserRepo) -> UserHandler {
+    pub fn new(user_repo: impl UserRepoTrait + 'static) -> UserHandler {
         UserHandler {
             user_repo: Arc::new(Mutex::new(user_repo)),
         }

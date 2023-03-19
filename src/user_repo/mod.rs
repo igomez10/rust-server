@@ -51,7 +51,7 @@ impl Default for UserRepo {
 }
 
 // trait
-pub trait UserRepoTrait {
+pub trait UserRepoTrait: Send + Sync {
     fn get_name(&mut self) -> String;
     fn set_name(&mut self, name: String);
     fn add_user(&mut self, user: User);
