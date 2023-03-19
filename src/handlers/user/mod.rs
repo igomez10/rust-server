@@ -6,7 +6,7 @@ use crate::{
 };
 
 // trait
-pub trait UserHandlerTrait {
+pub trait UserHandlerTrait: Send + Sync {
     fn get_name(&self) -> String;
     fn set_name(&self, name: String);
     fn add_user(&self, user: models::User);
@@ -25,23 +25,30 @@ impl UserHandler {
             user_repo: Arc::new(Mutex::new(user_repo)),
         }
     }
+}
 
-    pub fn get_name(&self) -> String {
+impl UserHandlerTrait for UserHandler {
+    fn get_name(&self) -> String {
         return self.user_repo.lock().unwrap().get_name();
     }
-    pub fn set_name(&self, name: String) {
+
+    fn set_name(&self, name: String) {
         self.user_repo.lock().unwrap().set_name(name);
     }
-    pub fn add_user(&self, user: models::User) {
+
+    fn add_user(&self, user: models::User) {
         self.user_repo.lock().unwrap().add_user(user);
     }
-    pub fn get_user(&self, id: i32) -> Option<models::User> {
-        self.user_repo.lock().unwrap().get_user(id)
+
+    fn get_user(&self, id: i32) -> Option<models::User> {
+        return self.user_repo.lock().unwrap().get_user(id);
     }
-    pub fn list_users(&self) -> Vec<models::User> {
-        self.user_repo.lock().unwrap().list_users()
+
+    fn list_users(&self) -> Vec<models::User> {
+        return self.user_repo.lock().unwrap().list_users();
     }
-    pub fn remove_user(&self, id: i32) {
+
+    fn remove_user(&self, id: i32) {
         self.user_repo.lock().unwrap().remove_user(id);
     }
 }

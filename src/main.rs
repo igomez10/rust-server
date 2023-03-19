@@ -1,4 +1,4 @@
-use handlers::user::UserHandler;
+use handlers::user::{UserHandler, UserHandlerTrait};
 use rocket::{serde::json::Json, State};
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
@@ -20,11 +20,11 @@ mod handlers {
 extern crate rocket;
 
 pub struct AppState {
-    pub user_handler: Arc<Mutex<UserHandler>>,
+    pub user_handler: Arc<Mutex<dyn UserHandlerTrait>>,
 }
 
 impl AppState {
-    pub fn new(user_handler: UserHandler) -> AppState {
+    pub fn new(user_handler: impl UserHandlerTrait + 'static) -> AppState {
         let mutex = Mutex::new(user_handler);
         let arc = Arc::new(mutex);
 
