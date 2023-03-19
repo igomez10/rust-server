@@ -2,7 +2,7 @@
 # VERSION 1.0.0
 
 # Build binary
-FROM rust:1.54.0 as builder
+FROM rust:1.64.0 as builder
 WORKDIR /usr/src/myapp
 COPY . .
 RUN cargo install --path .
