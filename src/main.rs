@@ -1,3 +1,4 @@
+use handlers::user::{UserHandler, UserHandlerTrait};
 use rocket::{serde::json::Json, State};
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
@@ -5,10 +6,15 @@ use std::sync::{Arc, Mutex};
 mod math;
 mod models;
 mod square;
+mod user_controller;
 mod user_repo;
 mod middlewares {
     pub mod counter;
     pub mod request_id;
+}
+
+mod handlers {
+    pub mod user;
 }
 
 #[macro_use]
@@ -20,40 +26,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(user_handler: UserHandler) -> AppState {
-        AppState {
-            user_handler: Arc::new(Mutex::new(user_handler)),
-        }
-    }
-}
+        let mutex = Mutex::new(user_handler);
+        let arc = Arc::new(mutex);
 
-pub struct UserHandler {
-    user_repo: Arc<Mutex<user_repo::UserRepo>>,
-}
-
-impl UserHandler {
-    fn new(user_repo: user_repo::UserRepo) -> UserHandler {
-        UserHandler {
-            user_repo: Arc::new(Mutex::new(user_repo)),
-        }
-    }
-
-    fn get_name(&self) -> String {
-        return self.user_repo.lock().unwrap().get_name();
-    }
-    fn set_name(&self, name: String) {
-        self.user_repo.lock().unwrap().set_name(name);
-    }
-    fn add_user(&self, user: models::User) {
-        self.user_repo.lock().unwrap().add_user(user);
-    }
-    fn get_user(&self, id: i32) -> Option<models::User> {
-        self.user_repo.lock().unwrap().get_user(id).cloned()
-    }
-    fn list_users(&self) -> Vec<models::User> {
-        self.user_repo.lock().unwrap().list_users()
-    }
-    fn remove_user(&self, id: i32) {
-        self.user_repo.lock().unwrap().remove_user(id);
+        AppState { user_handler: arc }
     }
 }
 
