@@ -2,7 +2,6 @@ use handlers::user::UserHandler;
 use rocket::{serde::json::Json, State};
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
-
 mod math;
 mod models;
 mod square;
@@ -118,7 +117,6 @@ async fn main() -> Result<(), rocket::Error> {
     let user_repo = user_repo::UserRepo::new();
     let user_handler = UserHandler::new(user_repo);
     let app_state = AppState::new(user_handler);
-    // mount in port 8080
 
     let counter_middleware = middlewares::counter::Counter {
         get: AtomicUsize::new(0),
@@ -149,5 +147,3 @@ async fn main() -> Result<(), rocket::Error> {
 
     Ok(())
 }
-
-// fn main() {}
