@@ -1,4 +1,4 @@
-use handlers::user::{UserHandler, UserHandlerTrait};
+use handlers::user::UserHandler;
 use rocket::{serde::json::Json, State};
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};

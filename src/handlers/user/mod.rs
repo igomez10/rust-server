@@ -16,7 +16,7 @@ pub trait UserHandlerTrait {
 }
 
 pub struct UserHandler {
-    user_repo: Arc<Mutex<dyn UserRepoTrait>>,
+    user_repo: Arc<Mutex<UserRepo>>,
 }
 
 impl UserHandler {
