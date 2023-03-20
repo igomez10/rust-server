@@ -115,7 +115,8 @@ async fn make_http_request() -> String {
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
     let user_repo = user_repo::UserRepo::new();
-    let user_handler = UserHandler::new(user_repo);
+    let user_controller = user_controller::UserCtrl::new(Box::new(user_repo));
+    let user_handler = UserHandler::new(user_controller);
     let app_state = AppState::new(user_handler);
 
     let counter_middleware = middlewares::counter::Counter {

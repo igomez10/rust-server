@@ -32,7 +32,7 @@ impl UserRepoTrait for UserRepo {
         self.users.iter().find(|user| user.id == id).cloned()
     }
 
-    fn list_users(&self) -> Vec<User> {
+    fn list_users(&mut self) -> Vec<User> {
         // create copy of users
         let users = self.users.clone();
         // sort users by id
@@ -56,7 +56,7 @@ pub trait UserRepoTrait: Send + Sync {
     fn set_name(&mut self, name: String);
     fn add_user(&mut self, user: User);
     fn get_user(&mut self, id: i32) -> Option<User>;
-    fn list_users(&self) -> Vec<User>;
+    fn list_users(&mut self) -> Vec<User>;
     fn remove_user(&mut self, id: i32);
 }
 
@@ -89,7 +89,8 @@ impl UserRepoTrait for MockUserRepo {
         self.count += 1;
         self.user_to_return.clone()
     }
-    fn list_users(&self) -> Vec<User> {
+    fn list_users(&mut self) -> Vec<User> {
+        self.count += 1;
         Vec::new()
     }
     fn remove_user(&mut self, _: i32) {}

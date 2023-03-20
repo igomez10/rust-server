@@ -1,10 +1,25 @@
 use crate::models::User;
 use crate::user_repo::UserRepoTrait;
 
-use self::interface::UserCtrlTrait;
 mod interface;
+
+pub trait UserCtrlTrait: Sync + Send {
+    fn get_name(&mut self) -> String;
+    fn set_name(&mut self, name: String);
+    fn add_user(&mut self, user: User);
+    fn get_user(&mut self, id: i32) -> Option<User>;
+    fn list_users(&mut self) -> Vec<User>;
+    fn remove_user(&mut self, id: i32);
+}
+
 pub struct UserCtrl {
     user_repo: Box<dyn UserRepoTrait>,
+}
+
+impl UserCtrl {
+    pub fn new(user_repo: Box<dyn UserRepoTrait>) -> UserCtrl {
+        UserCtrl { user_repo }
+    }
 }
 
 impl UserCtrlTrait for UserCtrl {
