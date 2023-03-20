@@ -1,8 +1,6 @@
 use crate::models::User;
 use crate::user_repo::UserRepoTrait;
 
-mod interface;
-
 pub trait UserCtrlTrait: Sync + Send {
     fn get_name(&mut self) -> String;
     fn set_name(&mut self, name: String);
