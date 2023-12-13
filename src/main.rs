@@ -1,20 +1,16 @@
-use handlers::user::{UserHandler, UserHandlerTrait};
+use crate::models::models::User;
 use rocket::{serde::json::Json, State};
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
-mod math;
+use user_handler::user_handler::UserHandler;
+use user_handler::user_handler_trait::UserHandlerTrait;
+mod middlewares;
 mod models;
 mod square;
 mod user_controller;
+mod user_handler;
 mod user_repo;
-mod middlewares {
-    pub mod counter;
-    pub mod request_id;
-}
-
-mod handlers {
-    pub mod user;
-}
 
 #[macro_use]
 extern crate rocket;
@@ -45,46 +41,26 @@ async fn handler_exec() -> String {
     return res;
 }
 
-#[post("/name/<name>")]
-fn post_name(name: &str, state: &State<AppState>) {
-    // get name
-    state
-        .user_handler
-        .lock()
-        .unwrap()
-        .set_name(name.to_string());
-}
-
-#[get("/name")]
-fn get_name(state: &State<AppState>) -> String {
-    // get name
-    return state.user_handler.lock().unwrap().get_name();
-}
-
 #[get("/users")]
 fn list_users(state: &State<AppState>) -> String {
     // get name
     let users = state.user_handler.lock().unwrap().list_users();
-    let mut res = String::new();
-    for user in users {
-        res.push_str(&format!("{} ", user.name));
-    }
-    return res;
+    let res = serde_json::to_string(&users).unwrap();
+
+    return res.to_string();
 }
 
 #[get("/users/<id>")]
 fn get_user(id: i32, state: &State<AppState>) -> String {
     // get name
     let user = state.user_handler.lock().unwrap().get_user(id);
-    return match user {
-        Some(user) => user.name,
-        None => "User not found".to_string(),
-    };
+    let res = serde_json::to_string(&user).unwrap();
+    return res;
 }
 
 // post json to /users to create user
 #[post("/users", data = "<user>")]
-fn create_user(user: Json<models::User>, state: &State<AppState>) {
+fn create_user(user: Json<User>, state: &State<AppState>) {
     // get name
     state
         .user_handler
@@ -114,8 +90,9 @@ async fn make_http_request() -> String {
 
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
-    let user_repo = user_repo::UserRepo::new();
-    let user_controller = user_controller::UserCtrl::new(Box::new(user_repo));
+    let user_repo = user_repo::user_repo::UserRepo::new();
+    let user_controller =
+        user_controller::user_controller::UserController::new(Box::new(user_repo));
     let user_handler = UserHandler::new(user_controller);
     let app_state = AppState::new(user_handler);
 
@@ -132,8 +109,6 @@ async fn main() -> Result<(), rocket::Error> {
             routes![
                 hello,
                 handler_exec,
-                post_name,
-                get_name,
                 list_users,
                 get_user,
                 create_user,
