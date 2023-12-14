@@ -1,12 +1,12 @@
 use super::user_handler_trait::UserHandlerTrait;
 use crate::{models::models::User, user_controller::user_controller_trait::UserControllerTrait};
-
 use std::sync::{Arc, Mutex};
 
 // UserHandler is a struct that implements UserHandlerTrait
 pub struct UserHandler {
     user_controller: Arc<Mutex<dyn UserControllerTrait>>,
 }
+
 impl UserHandler {
     pub fn new(controller: impl UserControllerTrait + 'static) -> UserHandler {
         UserHandler {
@@ -14,6 +14,7 @@ impl UserHandler {
         }
     }
 }
+
 impl UserHandlerTrait for UserHandler {
     fn add_user(&self, user: User) {
         self.user_controller.lock().unwrap().add_user(user);

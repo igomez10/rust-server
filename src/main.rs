@@ -1,30 +1,51 @@
 use crate::models::models::User;
+use dotenv::dotenv;
 use log::{debug, error, info, warn};
+use redis::Commands;
+use rocket::form;
+use rocket::form::name::Key;
 use rocket::{serde::json::Json, State};
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
+use user_controller::user_controller::UserController;
 use user_handler::user_handler::UserHandler;
 use user_handler::user_handler_trait::UserHandlerTrait;
+use user_repo::user_repo::UserRepo;
+
 mod middlewares;
 mod models;
 mod square;
 mod user_controller;
 mod user_handler;
 mod user_repo;
+extern crate redis;
 
 #[macro_use]
 extern crate rocket;
 
 pub struct AppState {
     pub user_handler: Arc<Mutex<dyn UserHandlerTrait>>,
+    pub redis_connection: Arc<Mutex<redis::Connection>>,
 }
 
 impl AppState {
-    pub fn new(user_handler: impl UserHandlerTrait + 'static) -> AppState {
-        let mutex = Mutex::new(user_handler);
-        let arc = Arc::new(mutex);
-        AppState { user_handler: arc }
+    pub fn new(
+        user_handler: impl UserHandlerTrait + 'static,
+        mut redis_connection: redis::Connection,
+    ) -> AppState {
+        let handler_mutex = Mutex::new(user_handler);
+        let handler_arc = Arc::new(handler_mutex);
+
+        // create redis connection
+        let redis_mutex = Mutex::new(redis_connection);
+        let redis_arc = Arc::new(redis_mutex);
+
+        AppState {
+            user_handler: handler_arc,
+            redis_connection: redis_arc,
+        }
     }
 }
 
@@ -100,6 +121,44 @@ fn create_user(user: Json<User>, state: &State<AppState>) {
     handler.add_user(user_obj);
 }
 
+// post json to /users to create user
+#[get("/keys/<key>")]
+fn fetch_key(key: String, state: &State<AppState>) -> String {
+    let mut conn = match state.redis_connection.lock() {
+        Ok(conn) => conn,
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return "Error".to_string();
+        }
+    };
+
+    let original_value: i32 = match conn.get(key.clone()) {
+        Ok(value) => value,
+        Err(e) => {
+            log::error!("Error getting value from redis: {}", e);
+            match conn.set("my_key", 0) {
+                Ok(value) => value,
+                Err(e) => {
+                    log::error!("Error setting original value in redis: {}", e);
+                    return "Error".to_string();
+                }
+            };
+            0
+        }
+    };
+
+    let new_value = original_value + 1;
+    match conn.set(key, new_value) {
+        Ok(value) => value,
+        Err(e) => {
+            log::error!("Error setting new value in redis: {}", e);
+            return "Error".to_string();
+        }
+    };
+
+    return new_value.to_string();
+}
+
 #[delete("/users/<id>")]
 fn delete_user(id: i32, state: &State<AppState>) -> String {
     // get name
@@ -149,11 +208,35 @@ async fn make_http_request() -> String {
 async fn main() -> Result<(), rocket::Error> {
     println!("Starting server...");
     env_logger::init();
-    let user_repo = user_repo::user_repo::UserRepo::new();
-    let user_controller =
-        user_controller::user_controller::UserController::new(Box::new(user_repo));
+    dotenv().ok();
+
+    let user_repo = UserRepo::new();
+    let user_controller = UserController::new(Box::new(user_repo));
     let user_handler = UserHandler::new(user_controller);
-    let app_state = AppState::new(user_handler);
+    let url = env::var("REDIS_URL").expect("REDIS_URL must be set");
+    let redis_client = match redis::Client::open(url) {
+        Ok(client) => {
+            log::info!("Redis client created");
+            client
+        }
+        Err(e) => {
+            log::error!("Error creating redis client: {}", e);
+            panic!("Error creating redis client: {}", e);
+        }
+    };
+
+    let mut redis_conn = match redis_client.get_connection() {
+        Ok(con) => {
+            log::info!("Redis connection created");
+            con
+        }
+        Err(e) => {
+            log::error!("Error getting redis connection: {}", e);
+            panic!("Error getting redis connection: {}", e);
+        }
+    };
+
+    let app_state = AppState::new(user_handler, redis_conn);
 
     let counter_middleware = middlewares::counter::Counter {
         get: AtomicUsize::new(0),
@@ -171,7 +254,8 @@ async fn main() -> Result<(), rocket::Error> {
                 list_users,
                 get_user,
                 create_user,
-                delete_user
+                delete_user,
+                fetch_key
             ],
         )
         .attach(counter_middleware)
