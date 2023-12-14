@@ -124,38 +124,21 @@ fn create_user(user: Json<User>, state: &State<AppState>) {
 // post json to /users to create user
 #[get("/keys/<key>")]
 fn fetch_key(key: String, state: &State<AppState>) -> String {
-    let mut conn = match state.redis_connection.lock() {
-        Ok(conn) => conn,
-        Err(e) => {
-            log::error!("Error: {}", e);
-            return "Error".to_string();
-        }
-    };
+    let mut conn = state
+        .redis_connection
+        .lock()
+        .expect("Error getting redis connection");
 
     let original_value: i32 = match conn.get(key.clone()) {
         Ok(value) => value,
         Err(e) => {
-            log::error!("Error getting value from redis: {}", e);
-            match conn.set("my_key", 0) {
-                Ok(value) => value,
-                Err(e) => {
-                    log::error!("Error setting original value in redis: {}", e);
-                    return "Error".to_string();
-                }
-            };
+            let () = conn.set("my_key", 0).expect("Error setting original value");
             0
         }
     };
 
     let new_value = original_value + 1;
-    match conn.set(key, new_value) {
-        Ok(value) => value,
-        Err(e) => {
-            log::error!("Error setting new value in redis: {}", e);
-            return "Error".to_string();
-        }
-    };
-
+    let () = conn.set(key, new_value).expect("Error setting new value");
     return new_value.to_string();
 }
 
@@ -214,27 +197,10 @@ async fn main() -> Result<(), rocket::Error> {
     let user_controller = UserController::new(Box::new(user_repo));
     let user_handler = UserHandler::new(user_controller);
     let url = env::var("REDIS_URL").expect("REDIS_URL must be set");
-    let redis_client = match redis::Client::open(url) {
-        Ok(client) => {
-            log::info!("Redis client created");
-            client
-        }
-        Err(e) => {
-            log::error!("Error creating redis client: {}", e);
-            panic!("Error creating redis client: {}", e);
-        }
-    };
-
-    let mut redis_conn = match redis_client.get_connection() {
-        Ok(con) => {
-            log::info!("Redis connection created");
-            con
-        }
-        Err(e) => {
-            log::error!("Error getting redis connection: {}", e);
-            panic!("Error getting redis connection: {}", e);
-        }
-    };
+    let redis_client = redis::Client::open(url).expect("Error creating redis client");
+    let mut redis_conn = redis_client
+        .get_connection()
+        .expect("Error getting redis connection");
 
     let app_state = AppState::new(user_handler, redis_conn);
 
