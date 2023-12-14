@@ -147,6 +147,7 @@ async fn make_http_request() -> String {
 
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
+    println!("Starting server...");
     env_logger::init();
     let user_repo = user_repo::user_repo::UserRepo::new();
     let user_controller =

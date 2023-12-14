@@ -25,5 +25,7 @@ COPY --from=builder /usr/src/myapp/target/release/rust-server .
 
 # Non-root user (optional but recommended)
 # Consider adding user creation steps here if you decide to use a non-root user
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV ROCKET_PORT=8080
 
 CMD ["./rust-server"]
