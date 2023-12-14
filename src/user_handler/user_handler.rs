@@ -19,8 +19,8 @@ impl UserHandlerTrait for UserHandler {
         self.user_controller.lock().unwrap().add_user(user);
     }
 
-    fn get_user(&self, id: i32) -> Option<User> {
-        return self.user_controller.lock().unwrap().get_user(id);
+    fn get_user(&self, id: i32) -> Result<User, Box<dyn std::error::Error>> {
+        return Ok(self.user_controller.lock().unwrap().get_user(id).unwrap());
     }
 
     fn list_users(&self) -> Vec<User> {

@@ -27,20 +27,20 @@ impl User {
         }
     }
     pub fn to_db(&self) {
-        println!("Saving user to DB");
+        log::debug!("Saving user to DB");
     }
 }
 
 // implement toDB for User
 impl ToDB for User {
     fn to_db(&self) {
-        println!("Saving user to DB");
+        log::debug!("Saving user to DB");
     }
 }
 
 // implement toDB for MockUser
 impl ToDB for MockUser {
     fn to_db(&self) {
-        println!("Saving user to Mock DB");
+        log::debug!("Saving user to Mock DB");
     }
 }

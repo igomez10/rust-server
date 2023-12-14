@@ -1,4 +1,5 @@
 use crate::models::models::User;
+use log::{debug, error, info, warn};
 use rocket::{serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicUsize;
@@ -23,7 +24,6 @@ impl AppState {
     pub fn new(user_handler: impl UserHandlerTrait + 'static) -> AppState {
         let mutex = Mutex::new(user_handler);
         let arc = Arc::new(mutex);
-
         AppState { user_handler: arc }
     }
 }
@@ -33,7 +33,6 @@ fn hello(name: &str, age: u8) -> String {
     format!("Hello, {} year old named {}!", age, name)
 }
 
-// example of async function
 #[get("/exec")]
 async fn handler_exec() -> String {
     // call makeHTTPRequest
@@ -43,36 +42,94 @@ async fn handler_exec() -> String {
 
 #[get("/users")]
 fn list_users(state: &State<AppState>) -> String {
-    // get name
-    let users = state.user_handler.lock().unwrap().list_users();
-    let res = serde_json::to_string(&users).unwrap();
-
-    return res.to_string();
+    let lock_res = state.user_handler.lock();
+    match lock_res {
+        Ok(handler) => {
+            let users = handler.list_users();
+            let res = serde_json::to_string(&users).unwrap();
+            return res.to_string();
+        }
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return "Error".to_string();
+        }
+    }
 }
 
 #[get("/users/<id>")]
 fn get_user(id: i32, state: &State<AppState>) -> String {
     // get name
-    let user = state.user_handler.lock().unwrap().get_user(id);
-    let res = serde_json::to_string(&user).unwrap();
-    return res;
+    let handler = match state.user_handler.lock() {
+        Ok(handler) => handler,
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return "Error".to_string();
+        }
+    };
+
+    let user = match handler.get_user(id) {
+        Ok(user) => user,
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return "Error".to_string();
+        }
+    };
+
+    let res = match serde_json::to_string(&user) {
+        Ok(res) => res,
+        Err(e) => {
+            log::error!("Error formatting json: {}", e);
+            return "Error".to_string();
+        }
+    };
+
+    return res.to_string();
 }
 
 // post json to /users to create user
 #[post("/users", data = "<user>")]
 fn create_user(user: Json<User>, state: &State<AppState>) {
-    // get name
-    state
-        .user_handler
-        .lock()
-        .unwrap()
-        .add_user(user.into_inner());
+    let handler = match state.user_handler.lock() {
+        Ok(handler) => handler,
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return;
+        }
+    };
+    let user_obj = user.into_inner();
+    handler.add_user(user_obj);
 }
 
 #[delete("/users/<id>")]
-fn delete_user(id: i32, state: &State<AppState>) {
+fn delete_user(id: i32, state: &State<AppState>) -> String {
     // get name
-    state.user_handler.lock().unwrap().remove_user(id);
+    let handler = match state.user_handler.lock() {
+        Ok(handler) => handler,
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return "Error".to_string();
+        }
+    };
+
+    // fetch user and delete it
+    let user_to_remove = match handler.get_user(id) {
+        Ok(user) => user,
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return "Error".to_string();
+        }
+    };
+
+    handler.remove_user(id);
+    let res_json = match serde_json::to_string(&user_to_remove) {
+        Ok(res) => res,
+        Err(e) => {
+            log::error!("Error formatting json: {}", e);
+            return "Error".to_string();
+        }
+    };
+
+    return res_json.to_string();
 }
 
 async fn make_http_request() -> String {
@@ -84,12 +141,13 @@ async fn make_http_request() -> String {
         .await
         .unwrap();
 
-    println!("Status: {}", res.status());
+    log::info!("Status: {}", res.status());
     return res.text().await.unwrap();
 }
 
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
+    env_logger::init();
     let user_repo = user_repo::user_repo::UserRepo::new();
     let user_controller =
         user_controller::user_controller::UserController::new(Box::new(user_repo));

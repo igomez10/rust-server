@@ -23,8 +23,13 @@ impl UserRepoTrait for UserRepo {
     fn create_user(&mut self, user: User) {
         self.users.push(user);
     }
-    fn get_user(&mut self, id: i32) -> Option<User> {
-        self.users.iter().find(|user| user.id == id).cloned()
+    fn get_user(&mut self, id: i32) -> Result<User, Box<dyn std::error::Error>> {
+        for user in &self.users {
+            if user.id == id {
+                return Ok(user.clone());
+            }
+        }
+        return Err("User not found".into());
     }
 
     fn list_users(&mut self) -> Vec<User> {

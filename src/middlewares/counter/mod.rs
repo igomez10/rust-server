@@ -24,11 +24,11 @@ impl Fairing for Counter {
         match request.method() {
             Method::Get => {
                 self.get.fetch_add(1, Ordering::Relaxed);
-                println!("GET request");
+                log::info!("GET request");
             }
             Method::Post => {
                 self.post.fetch_add(1, Ordering::Relaxed);
-                println!("POST request");
+                log::info!("POST request");
             }
             _ => return,
         };
