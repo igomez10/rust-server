@@ -1,5 +1,5 @@
 # Build binary
-FROM rust:1.64.0 as builder
+FROM rust:1.74.0 as builder
 WORKDIR /usr/src/myapp
 
 # Copy the manifest files first to cache the dependencies
