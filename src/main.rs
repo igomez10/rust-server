@@ -1,11 +1,11 @@
 use crate::models::models::User;
 use dotenv::dotenv;
-use log::{debug, error, info, warn};
 use redis::Commands;
-use rocket::form;
-use rocket::form::name::Key;
+use rocket::http::Status;
+use rocket::outcome::Outcome::*;
+use rocket::request::FromRequest;
 use rocket::{serde::json::Json, State};
-use serde::{Deserialize, Serialize};
+use std::convert::Infallible;
 use std::env;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,6 @@ use user_controller::user_controller::UserController;
 use user_handler::user_handler::UserHandler;
 use user_handler::user_handler_trait::UserHandlerTrait;
 use user_repo::user_repo::UserRepo;
-
 mod middlewares;
 mod models;
 mod square;
@@ -75,6 +74,29 @@ fn list_users(state: &State<AppState>) -> String {
             return "Error".to_string();
         }
     }
+}
+
+struct HostHeader(String);
+
+// implement from request for HostHeader
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for HostHeader {
+    type Error = Infallible;
+
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        let host_header = request.headers().get_one("Host").unwrap();
+        Success(HostHeader(host_header.to_string()))
+    }
+}
+
+// proxy
+#[get("/")]
+async fn proxy(host_header: HostHeader) -> Result<String, Status> {
+    let host = host_header.0;
+    log::info!("Host: {}", host);
+    return Ok(host);
 }
 
 #[get("/users/<id>")]
@@ -221,7 +243,8 @@ async fn main() -> Result<(), rocket::Error> {
                 get_user,
                 create_user,
                 delete_user,
-                fetch_key
+                fetch_key,
+                proxy
             ],
         )
         .attach(counter_middleware)
